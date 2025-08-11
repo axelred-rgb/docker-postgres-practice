@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  proxy:
+    image: traefik:v2.9
+    ports:
+      - "80:80"
+      - "8080:8080"
+    command:
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedByDefault=false"
+      - "--api.insecure=true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    networks:
+      - webnet
+
+  tomcat:
+    image: tomcat:9.0-jdk11-temurin
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.tomcat.rule=Host(`tomcat.localhost`)"
+        - "traefik.http.services.tomcat.loadbalancer.server.port=8080"
+        - "traefik.http.routers.tomcat.entrypoints=web"
+    networks:
+      - webnet
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - webnet
+  
+  # --- IL NOSTRO NUOVO SERVIZIO AGENTE ---
+  monitoring-agent:
+    # Usa l'immagine che abbiamo costruito e testato
+    image: mio-agente:1.1
+    volumes:
+      # Dà accesso all'API di Docker per le statistiche
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Dà accesso in sola lettura alle metriche dell'host
+      - /proc:/host/proc:ro
+    environment:
+      # Dice allo script dove trovare i file dell'host
+      HOST_PROC: /host/proc
+    deploy:
+      # Modalità globale: un'istanza per ogni nodo del cluster
+      mode: global
+
+volumes:
+  pgdata:
+
+networks:
+  webnet:
+    driver: overlay
+
+secrets:
+  postgres_password:
+    external: true
