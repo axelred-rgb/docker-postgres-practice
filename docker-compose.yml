@@ -1,0 +1,27 @@
+# Specifica la versione della sintassi di docker-compose
+version: '3.8'
+
+# Definizione dei servizi (i nostri container)
+services:
+  # Nome del nostro servizio
+  postgres:
+    # Immagine Docker da usare. Usa una versione specifica!
+    image: postgres:15
+    # Riavvia sempre il container se si ferma
+    restart: always
+    # Variabili d'ambiente per configurare il database
+    environment:
+      # Imposta la password per l'utente 'postgres'
+      POSTGRES_PASSWORD: 123456
+    # Mappa le porte: la porta 5432 del tuo ambiente virtuale
+    # si collegherà alla porta 5432 del container
+    ports:
+      - "5432:5432"
+    # Gestione dei dati per renderli persistenti
+    volumes:
+      # Associa un volume nominato 'pgdata' alla cartella dei dati di postgres
+      - pgdata:/var/lib/postgresql/data
+
+# Definizione dei volumi nominati
+volumes:
+  pgdata:
